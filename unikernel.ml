@@ -14,8 +14,8 @@ module Main
     let open Yojson.Basic.Util in
     let magic = j |> member "magic" |> to_int_option in
     match magic with
-      | Some 31337 -> j |> member "counter" |> to_int
-      | _ -> raise (Failure "bad magic")
+    | Some 31337 -> j |> member "counter" |> to_int
+    | _ -> raise (Failure "bad magic")
 
   let cstruct_of_int i =
     Cstruct.of_string (Fmt.strf "%d\n" i)
@@ -23,24 +23,24 @@ module Main
   let log_new flow =
     let dst, dst_port = S.TCPV4.dst flow in
     Logs.info (fun f -> f "[%a:%d] New connection"
-                Ipaddr.V4.pp dst dst_port)
+                  Ipaddr.V4.pp dst dst_port)
 
   let log_write_err flow e =
     let dst, dst_port = S.TCPV4.dst flow in
     Logs.warn (fun f -> f "[%a:%d] Write error: %a, closing connection"
-                Ipaddr.V4.pp dst dst_port S.TCPV4.pp_write_error e)
+                  Ipaddr.V4.pp dst dst_port S.TCPV4.pp_write_error e)
 
   let log_block_read_err e = 
     Logs.err (fun f -> f "Block read error: %a" B.pp_error e)
 
   let log_block_write_err e =
     Logs.err (fun f -> f "Block write error: %a" B.pp_write_error e)
-  
+
   let log_closing flow =
     let dst, dst_port = S.TCPV4.dst flow in
     Logs.info (fun f -> f "[%a:%d] Closing connection"
-                Ipaddr.V4.pp dst dst_port)
-  
+                  Ipaddr.V4.pp dst dst_port)
+
   let hello = Cstruct.of_string "Hello\n"
 
   let start c s b : unit Lwt.t =
@@ -63,9 +63,9 @@ module Main
       B.write block Int64.zero [ buf ] >>= function
       | Error e -> log_block_write_err e; Lwt.return_unit
       | Ok ()   -> (
-        Logs.info (fun m -> m "Successfully initialised block device");
-        Lwt.return_unit
-      )
+          Logs.info (fun m -> m "Successfully initialised block device");
+          Lwt.return_unit
+        )
     and store_counter block counter flow =
       let buf = sector_of_int counter in 
       B.write block Int64.zero [ buf ] >>= function
