@@ -1,6 +1,9 @@
 open Lwt.Infix
 
-module Main (S: Mirage_stack_lwt.V4)(B: Mirage_types_lwt.BLOCK) = struct
+module Main
+    (C: Mirage_types_lwt.CONSOLE)
+    (S: Mirage_stack_lwt.V4)
+    (B: Mirage_types_lwt.BLOCK) = struct
 
   let align i n = (i + n - 1) / n * n
 
@@ -40,7 +43,11 @@ module Main (S: Mirage_stack_lwt.V4)(B: Mirage_types_lwt.BLOCK) = struct
   
   let hello = Cstruct.of_string "Hello\n"
 
-  let start s b : unit Lwt.t =
+  let start c s b : unit Lwt.t =
+    C.log c ("") >>= fun _x ->
+    Bootvar.argv () >>= fun args ->
+    Logs.info (fun m -> m "Bootvar.argv(): [%a]"
+                  Fmt.(array ~sep:Fmt.comma Fmt.string) args);
     B.get_info b >>= fun binfo ->
     Logs.info (fun m -> m "Sector size %d" binfo.sector_size);
 
