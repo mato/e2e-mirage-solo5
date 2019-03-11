@@ -49,14 +49,15 @@ module Main
     Logs.info (fun m -> m "Bootvar.argv(): [%a]"
                   Fmt.(array ~sep:Fmt.comma Fmt.string) args);
     B.get_info b >>= fun binfo ->
-    Logs.info (fun m -> m "Sector size %d" binfo.sector_size);
+    Logs.info (fun m -> m "Sector size %d" binfo.Mirage_block.sector_size);
 
-    let rec alloc_sector len = Cstruct.create (align len binfo.sector_size)
+    let rec alloc_sector len =
+      Cstruct.create (align len binfo.Mirage_block.sector_size)
     and sector_of_int i =
       let j = `Assoc [ ("magic", `Int 31337); ("counter", `Int i) ] in
       let s = Yojson.Basic.to_string j in
       let buf' = Cstruct.of_string ~allocator:alloc_sector s in
-      Cstruct.set_len buf' binfo.sector_size
+      Cstruct.set_len buf' binfo.Mirage_block.sector_size
     and initialize block =
       let buf = sector_of_int 0 in
       B.write block Int64.zero [ buf ] >>= function
