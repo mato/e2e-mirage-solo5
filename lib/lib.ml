@@ -21,7 +21,18 @@ let setup_switch =
       >> call [ "opam"; "switch"; "create"; switch_path; "4.07.1" ]
       >> chdir switch_path (call [ "tar"; "-czf"; "../switch.tar.gz"; "." ])
 
-let universe = eval (readdir universe_path)
+type pin_action = Master | Release | Local
+
+let universe : (string * pin_action) list =
+  let u = eval (readdir universe_path) in
+  Stdlib.List.map (fun pkg ->
+    let pkgdir = eval (readdir (universe_path ^ "/" ^ pkg)) in
+    match pkgdir with
+    | [ "master" ] -> (pkg, Master)
+    | [ "release" ] -> (pkg, Release)
+    | [ "local" ] -> (pkg, Local)
+    | _ -> raise (Failure "bad definition"))
+    u
 
 let abspath path = call [ "readlink"; "-f"; path ] |- read_all >>| String.trim
 
@@ -34,13 +45,21 @@ let with_switch = [ "opam"; "exec";
 let opam_install args =
   set_env "OPAMYES" "true" (call (with_switch @ [ "opam"; "install" ] @ args))
 
-let opam_pin_add pkg : unit t =
-  set_env "OPAMYES" "true" (
-    call (with_switch @ [ "opam"; "pin"; "add"; "-n"; "--dev-repo"; pkg ]))
+let opam_pin_action (pkg, action) =
+  match action with
+  | Master -> (* pin package to --dev-repo *)
+    set_env "OPAMYES" "true" (
+      call (with_switch @ [ "opam"; "pin"; "add"; "-n"; "--dev-repo"; pkg ]))
+  | Local -> (* pin package to local repo at universe/pkg/local *)
+    set_env "OPAMYES" "true" (
+      call (with_switch @ [ "opam"; "pin"; "add"; "-n"; pkg;
+                            universe_path ^ "/" ^ pkg ^ "/local" ]))
+  | Release -> (* install but don't pin, i.e. use the released version *)
+    return ()
 
 let install_mirage =
-  Shexp_process.List.iter ~f:opam_pin_add universe
-  >> opam_install universe
+  Shexp_process.List.iter ~f:opam_pin_action universe
+  >> opam_install (Stdlib.List.map (fun (pkg, _) -> pkg) universe)
 
 let build_unikernel =
   chdir src_path (
