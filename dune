@@ -1,1 +1,1 @@
-(dirs :standard \ mirage \ run)
+(dirs :standard \ run \ unikernel \ universe)

@@ -2,33 +2,41 @@ open Shexp_process
 open Shexp_process.Infix
 
 let run_path = "./run"
-let switch_path = "./run/switch"
+let switch_path = run_path ^ "/switch"
 let src_path = "./unikernel"
-let block_path = "./run/disk.img"
+let block_path = run_path ^ "/disk.img"
 let universe_path = "./universe"
 
+(* setup the base switch, creating a "cache" of it in switch.tar.gz, this is
+ * useful for repeated runs mainly while developing this script, to save on
+ * time taken to build ocaml *)
 let setup_switch = 
     file_exists switch_path >>= function
-    | true  -> call [ "rm"; "-rf"; switch_path ]
-               >> chdir run_path (call [ "tar"; "-xzf"; "switch.tar.gz" ])
-    | false -> call [ "mkdir"; "-p"; switch_path ]
-               >> call [ "opam"; "switch"; "create"; switch_path; "4.07.1" ]
-               >> chdir run_path
-                 (call [ "tar"; "-czf"; "switch.tar.gz"; "switch/" ])
+    | true  ->
+      call [ "rm"; "-rf"; switch_path ]
+      >> call [ "mkdir"; "-p"; switch_path ]
+      >> chdir switch_path (call [ "tar"; "-xzf"; "../switch.tar.gz" ])
+    | false ->
+      call [ "mkdir"; "-p"; switch_path ]
+      >> call [ "opam"; "switch"; "create"; switch_path; "4.07.1" ]
+      >> chdir switch_path (call [ "tar"; "-czf"; "../switch.tar.gz"; "." ])
 
 let universe = eval (readdir universe_path)
 
 let abspath path = call [ "readlink"; "-f"; path ] |- read_all >>| String.trim
 
-let with_switch = [ "opam"; "exec"; "--switch=" ^ (eval (abspath switch_path));
+(* the eval expression will be evaluated immediately, so we can't use (abspath
+ * switch_path) here as it might not exist yet *)
+let with_switch = [ "opam"; "exec";
+                    "--switch=" ^ (eval (abspath ".")) ^ "/" ^ switch_path;
                     "--set-switch"; "--" ]
 
 let opam_install args =
   set_env "OPAMYES" "true" (call (with_switch @ [ "opam"; "install" ] @ args))
 
 let opam_pin_add pkg : unit t =
-  set_env "OPAMYES" "true" (call (with_switch @
-                                  [ "opam"; "pin"; "add"; "-n"; "--dev-repo"; pkg ]))
+  set_env "OPAMYES" "true" (
+    call (with_switch @ [ "opam"; "pin"; "add"; "-n"; "--dev-repo"; pkg ]))
 
 let install_mirage =
   Shexp_process.List.iter ~f:opam_pin_add universe
@@ -52,8 +60,12 @@ let setup_net =
 let setup_block =
   file_exists block_path >>= function
   | true  -> return ()
-  | false -> call [ "dd"; "if=/dev/zero"; "of=" ^ block_path; "bs=512"; "count=1" ]
+  | false ->
+    call [ "dd"; "if=/dev/zero"; "of=" ^ block_path; "bs=512"; "count=1" ]
 
 let init_unikernel =
-  call [ src_path ^ "/solo5-hvt"; "--net=tap100"; "--disk=" ^ block_path; src_path ^ "/test.hvt"; "--init" ]
+  call [ src_path ^ "/solo5-hvt";
+         "--net=tap100";
+         "--disk=" ^ block_path;
+         src_path ^ "/test.hvt"; "--init" ]
 
