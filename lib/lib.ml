@@ -95,11 +95,14 @@ let run_unikernel =
          src_path ^ "/test.hvt" ]
 
 let run_client =
-  call [ "dune"; "exec"; "client/main.exe" ]
+  call [ "dune"; "exec"; "client/main.exe" ] |- read_all >>= fun output ->
+  return (int_of_string (String.trim (output)))
 
 (* TODO:
- *  - Handle failures
  *  - Probably also needs a sleep or auto-reconnect in client to run reliably
- *  - Run this count times and actually verify that the output of client == count 
  *)
-let run_smoketest = fork run_unikernel run_client >>= fun (_a, _b) -> return ()
+let run_smoketest expected =
+  fork run_unikernel run_client >>= fun (_u, c) ->
+  if c = expected then
+    echo (">>>> Passed: " ^ string_of_int expected)
+  else failwith ("Failed:" ^ string_of_int c)

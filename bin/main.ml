@@ -8,6 +8,7 @@ let main =
     Logged.eval setup_net;
     Logged.eval setup_block;
     Logged.eval init_unikernel;
-    Logged.eval run_smoketest
+    let expected = [ 1; 2; 3 ] in
+    Logged.eval (List.iter ~f:run_smoketest expected)
 
 let () = main
