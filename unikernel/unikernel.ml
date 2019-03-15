@@ -41,8 +41,6 @@ module Main
     Logs.info (fun f -> f "[%a:%d] Closing connection"
                   Ipaddr.V4.pp dst dst_port)
 
-  let hello = Cstruct.of_string "Hello\n"
-
   let start c s b : unit Lwt.t =
     C.log c ("") >>= fun _x ->
     Bootvar.argv () >>= fun args ->
@@ -83,16 +81,19 @@ module Main
       | Ok ()   -> write_response block (int_of_sector buf) flow
     and start_request block flow =
       log_new flow;
-      S.TCPV4.write flow hello >>= function
-      | Error e -> log_write_err flow e; S.TCPV4.close flow
-      | Ok ()   -> load_counter block flow
+      Lwt.return_unit >>= fun () -> load_counter block flow
     in
 
     if Key_gen.init () then initialize b else (
       let port = Key_gen.port () in
       Logs.info (fun m -> m "Listening on [%a:%d]"
                     Fmt.(list Ipaddr.V4.pp) (S.(IPV4.get_ip @@ ipv4 s)) port);
-      S.listen_tcpv4 s ~port (start_request b);
-      S.listen s
+      (* Process a single request and cleanly exit the unikernel *)
+      let cancel, cancel_th = Lwt.task () in
+      S.listen_tcpv4 s ~port (fun flow ->
+        start_request b flow >>= fun () ->
+        S.TCPV4.close flow >|= fun () ->
+        Lwt.wakeup cancel_th ());
+      Lwt.pick [ S.listen s; cancel ]
     )
 end
