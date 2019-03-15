@@ -31,7 +31,7 @@ let universe : (string * pin_action) list =
     | [ "master" ] -> (pkg, Master)
     | [ "release" ] -> (pkg, Release)
     | [ "local" ] -> (pkg, Local)
-    | _ -> raise (Failure "bad definition"))
+    | _ -> failwith ("Invalid definition for package: " ^ pkg))
     u
 
 let abspath path = call [ "readlink"; "-f"; path ] |- read_all >>| String.trim
