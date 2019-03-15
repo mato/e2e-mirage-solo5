@@ -7,6 +7,7 @@ let main =
     Logged.eval build_unikernel;
     Logged.eval setup_net;
     Logged.eval setup_block;
-    Logged.eval init_unikernel
+    Logged.eval init_unikernel;
+    Logged.eval run_smoketest
 
 let () = main

@@ -88,3 +88,18 @@ let init_unikernel =
          "--disk=" ^ block_path;
          src_path ^ "/test.hvt"; "--init" ]
 
+let run_unikernel =
+  call [ src_path ^ "/solo5-hvt";
+         "--net=tap100";
+         "--disk=" ^ block_path;
+         src_path ^ "/test.hvt" ]
+
+let run_client =
+  call [ "dune"; "exec"; "client/main.exe" ]
+
+(* TODO:
+ *  - Handle failures
+ *  - Probably also needs a sleep or auto-reconnect in client to run reliably
+ *  - Run this count times and actually verify that the output of client == count 
+ *)
+let run_smoketest = fork run_unikernel run_client >>= fun (_a, _b) -> return ()
