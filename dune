@@ -1,1 +1,1 @@
-(dirs :standard \ run \ unikernel \ universe)
+(dirs :standard \ run unikernel universe)
