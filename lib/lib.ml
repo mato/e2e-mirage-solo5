@@ -1,16 +1,20 @@
 open Shexp_process
 open Shexp_process.Infix
 
+(* "Configurable" settings -------------------------------------------------- *)
+
 let run_path = "./run"
 let switch_path = run_path ^ "/switch"
 let src_path = "./unikernel"
 let block_path = run_path ^ "/disk.img"
 let universe_path = "./universe"
 
+(* Prepare: Base switch setup ----------------------------------------------- *)
+
 (* setup the base switch, creating a "cache" of it in switch.tar.gz, this is
  * useful for repeated runs mainly while developing this script, to save on
  * time taken to build ocaml *)
-let setup_switch = 
+let prep_setup_switch = 
     file_exists switch_path >>= function
     | true  ->
       call [ "rm"; "-rf"; switch_path ]
@@ -20,6 +24,8 @@ let setup_switch =
       call [ "mkdir"; "-p"; switch_path ]
       >> call [ "opam"; "switch"; "create"; switch_path; "4.07.1" ]
       >> chdir switch_path (call [ "tar"; "-czf"; "../switch.tar.gz"; "." ])
+
+(* Prepare: Install root packages ------------------------------------------- *)
 
 type pin_action = Master | Release | Local
 
@@ -57,13 +63,15 @@ let opam_pin_action (pkg, action) =
   | Release -> (* install but don't pin, i.e. use the released version *)
     return ()
 
-let install_mirage =
+let prep_install_packages =
   Shexp_process.List.iter ~f:opam_pin_action universe
   >> opam_install (Stdlib.List.map (fun (pkg, _) -> pkg) universe)
 
+(* Build: Build smoketest unikernel ----------------------------------------- *)
+
 let call_ignored args = call_exit_status args >>= fun _status -> return ()
 
-let build_unikernel =
+let build_smoketest =
   chdir src_path (
     call_ignored (with_switch @ [ "mirage"; "clean" ])
     >> call (with_switch @ [ "mirage"; "configure"; "-t"; "hvt" ])
@@ -71,7 +79,9 @@ let build_unikernel =
     >> call (with_switch @ [ "make" ])
   )
 
-let setup_net =
+(* Run: Setup network device ------------------------------------------------ *)
+
+let run_setup_net =
   let ip args = call ([ "sudo"; "ip" ] @ args) in
   file_exists "/sys/class/net/tap100" >>= function
   | true  -> return ()
@@ -79,25 +89,31 @@ let setup_net =
              >> ip [ "addr"; "add"; "10.0.0.1/24"; "dev"; "tap100" ]
              >> ip [ "link"; "set"; "dev"; "tap100"; "up" ]
 
-let setup_block =
+(* Run: Setup block device -------------------------------------------------- *)
+
+let run_setup_block =
   file_exists block_path >>= function
   | true  -> return ()
   | false ->
     call [ "dd"; "if=/dev/zero"; "of=" ^ block_path; "bs=512"; "count=1" ]
 
-let init_unikernel =
+(* Run: Initialise smoketest ------------------------------------------------ *)
+
+let run_init_smoketest =
   call [ src_path ^ "/solo5-hvt";
          "--net=tap100";
          "--disk=" ^ block_path;
          src_path ^ "/test.hvt"; "--init" ]
 
-let run_unikernel =
+(* Run: Run smoketest ------------------------------------------------------- *)
+
+let run_smoketest_server =
   call [ src_path ^ "/solo5-hvt";
          "--net=tap100";
          "--disk=" ^ block_path;
          src_path ^ "/test.hvt" ]
 
-let run_client =
+let run_smoketest_client =
   call [ "dune"; "exec"; "client/main.exe" ] |- read_all >>= fun output ->
   return (int_of_string (String.trim (output)))
 
@@ -105,7 +121,7 @@ let run_client =
  *  - Probably also needs a sleep or auto-reconnect in client to run reliably
  *)
 let run_smoketest expected =
-  fork run_unikernel run_client >>= fun (_u, c) ->
+  fork run_smoketest_server run_smoketest_client >>= fun (_s, c) ->
   if c = expected then
     echo (">>>> Passed: " ^ string_of_int expected)
   else failwith ("Failed:" ^ string_of_int c)
