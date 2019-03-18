@@ -61,9 +61,12 @@ let install_mirage =
   Shexp_process.List.iter ~f:opam_pin_action universe
   >> opam_install (Stdlib.List.map (fun (pkg, _) -> pkg) universe)
 
+let call_ignored args = call_exit_status args >>= fun _status -> return ()
+
 let build_unikernel =
   chdir src_path (
-    call (with_switch @ [ "mirage"; "configure"; "-t"; "hvt" ])
+    call_ignored (with_switch @ [ "mirage"; "clean" ])
+    >> call (with_switch @ [ "mirage"; "configure"; "-t"; "hvt" ])
     >> call (with_switch @ [ "make"; "depend" ])
     >> call (with_switch @ [ "make" ])
   )
