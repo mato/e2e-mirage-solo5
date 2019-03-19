@@ -128,12 +128,10 @@ let run_smoketest_server =
           src_path ^ "/test.hvt" ])
 
 let run_smoketest_client =
-  call [ "dune"; "exec"; "client/main.exe" ] |- read_all >>= fun output ->
+  call [ "dune"; "exec";
+         "client/main.exe"; "10.0.0.2" ] |- read_all >>= fun output ->
   return (int_of_string (String.trim (output)))
 
-(* TODO:
- *  - Probably also needs a sleep or auto-reconnect in client to run reliably
- *)
 let run_smoketest expected =
   fork run_smoketest_server run_smoketest_client >>= fun (_s, c) ->
   if c = expected then
