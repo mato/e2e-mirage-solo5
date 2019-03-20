@@ -107,7 +107,10 @@ let run_setup_block =
  *)
 let hvt_tender_path =
   file_exists (src_path ^ "/solo5-hvt") >>= fun hvt_is_local ->
-  if hvt_is_local then return (src_path ^ "solo5-hvt") else return ("solo5-hvt")
+  if hvt_is_local then
+    return (src_path ^ "/solo5-hvt")
+  else
+    return ("solo5-hvt")
 
 let run_init_smoketest =
   hvt_tender_path >>= fun hvt_tender_path' ->
