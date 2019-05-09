@@ -14,10 +14,8 @@ let universe_path = "./universe"
 (* setup the base switch, creating a "cache" of it in switch.tar.gz, this is
  * useful for repeated runs mainly while developing this script, to save on
  * time taken to build ocaml *)
-let prep_setup_switch =
-    (* workaround for ocaml/dune#2099 *)
-    call [ "mkdir"; "-p"; "./_build/default/lib" ]
-    >> file_exists switch_path >>= function
+let prep_setup_switch = 
+    file_exists switch_path >>= function
     | true  ->
       call [ "rm"; "-rf"; switch_path ]
       >> call [ "mkdir"; "-p"; switch_path ]
