@@ -16,9 +16,7 @@ let universe_path = "./universe"
  * time taken to build ocaml *)
 let prep_setup_switch =
     (* workaround for ocaml/dune#2099 *)
-    call [ "mkdir"; "-p";
-           "./_build/default/lib";
-           "./_build/install/default/lib" ]
+    call [ "mkdir"; "-p"; "./_build/default/lib" ]
     >> file_exists switch_path >>= function
     | true  ->
       call [ "rm"; "-rf"; switch_path ]
